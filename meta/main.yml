@@ -1,6 +1,7 @@
 ---
 
 galaxy_info:
+  role-name: php8
   author: "Jasper N. Brouwer, Ramon de la Fuente"
   description: Install PHP version 8.X from deb.sury.org
   company: Future500
