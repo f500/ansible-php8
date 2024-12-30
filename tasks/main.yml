@@ -1,119 +1,125 @@
 ---
-
 - name: Validate version value
-  fail:
+  ansible.builtin.fail:
     msg: "The value of php8_version must >= 8.0 and < 9.0"
   when: not (php8_version >= 8.0 and php8_version < 9.0)
 
 - name: Install packages needed to use the deb.sury.org repository
-  apt:
-    name: ['apt-transport-https', 'ca-certificates']
+  ansible.builtin.apt:
+    name: ["apt-transport-https", "ca-certificates"]
     state: present
 
 - name: Add the deb.sury.org trusted key
   ansible.builtin.get_url:
     dest: /etc/apt/trusted.gpg.d/php.gpg
-    mode: 0644
-    force: yes
+    mode: "0644"
+    force: true
     url: https://packages.sury.org/php/apt.gpg
 
 - name: Add the deb.sury.org repository
-  apt_repository:
+  ansible.builtin.apt_repository:
     repo: "deb https://packages.sury.org/php/ {{ ansible_distribution_release }} main"
-    update_cache: yes
+    update_cache: true
 
 - name: Install PHP CLI
-  apt:
+  ansible.builtin.apt:
     name: "php{{ php8_version }}-cli"
 
 - name: Configure PHP for CLI
-  template:
+  ansible.builtin.template:
     src: php.ini.j2
     dest: "/etc/php/{{ php8_version }}/cli/conf.d/99-customization.ini"
+    mode: "0644"
   vars:
     php8_ini_directives: "{{ php8_ini_directives_default | combine(php8_ini_directives_global) | combine(php8_ini_directives_cli) }}"
 
 - name: Install PHP module development files
-  apt:
+  ansible.builtin.apt:
     name: "php{{ php8_version }}-dev"
   when: php8_enable_dev | bool
 
 - name: Install PHP Apache2 module
-  apt:
+  ansible.builtin.apt:
     name: "libapache2-mod-php{{ php8_version }}"
   when: php8_enable_apache | bool
 
 - name: Configure PHP for Apache2
-  template:
+  ansible.builtin.template:
     src: php.ini.j2
     dest: "/etc/php/{{ php8_version }}/apache2/conf.d/99-customization.ini"
+    mode: "0644"
   vars:
     php8_ini_directives: "{{ php8_ini_directives_default | combine(php8_ini_directives_global) | combine(php8_ini_directives_apache) }}"
   notify: Restart Apache
   when: php8_enable_apache | bool
 
 - name: Install PHP CGI binary
-  apt:
+  ansible.builtin.apt:
     name: "php{{ php8_version }}-cgi"
   when: php8_enable_cgi | bool
 
 - name: Configure PHP for CGI
-  template:
+  ansible.builtin.template:
     src: php.ini.j2
     dest: "/etc/php/{{ php8_version }}/cgi/conf.d/99-customization.ini"
+    mode: "0644"
   vars:
     php8_ini_directives: "{{ php8_ini_directives_default | combine(php8_ini_directives_global) | combine(php8_ini_directives_cgi) }}"
   when: php8_enable_cgi | bool
 
 - name: Install PHP FPM binary
-  apt:
+  ansible.builtin.apt:
     name: "php{{ php8_version }}-fpm"
   when: php8_enable_fpm | bool
 
 - name: Configure PHP for FPM
-  template:
+  ansible.builtin.template:
     src: php.ini.j2
     dest: "/etc/php/{{ php8_version }}/fpm/conf.d/99-customization.ini"
+    mode: "0644"
   vars:
     php8_ini_directives: "{{ php8_ini_directives_default | combine(php8_ini_directives_global) | combine(php8_ini_directives_fpm) }}"
   notify: Restart PHP FPM
   when: php8_enable_fpm | bool
 
 - name: Configure FPM
-  template:
+  ansible.builtin.template:
     src: php-fpm.conf.j2
     dest: "/etc/php/{{ php8_version }}/fpm/php-fpm.conf"
+    mode: "0644"
   notify: Restart PHP FPM
   when: php8_enable_fpm | bool
 
 - name: Ensure "chdir" in the standard pool exists
-  file:
+  ansible.builtin.file:
     path: "{{ php8_fpm_pool_chdir }}"
     state: directory
+    mode: "0755"
   when: php8_enable_fpm | bool and php8_fpm_pool_enabled | bool
 
 - name: Configure the standard pool for FPM
-  template:
+  ansible.builtin.template:
     src: php-fpm-pool.conf.j2
     dest: "/etc/php/{{ php8_version }}/fpm/pool.d/{{ php8_fpm_pool_name }}.conf"
+    mode: "0644"
   notify: Restart PHP FPM
   when: php8_enable_fpm | bool and php8_fpm_pool_enabled | bool
 
 - name: Remove the standard pool for FPM
-  file:
+  ansible.builtin.file:
     path: "/etc/php/{{ php8_version }}/fpm/pool.d/{{ php8_fpm_pool_name }}.conf"
     state: absent
   notify: Restart PHP FPM
   when: php8_enable_fpm | bool and not php8_fpm_pool_enabled | bool
 
 - name: Enable the FPM service
-  service:
+  ansible.builtin.service:
     name: "php{{ php8_version }}-fpm"
-    enabled: yes
+    enabled: true
   when: php8_enable_fpm | bool
 
 - name: Install PHP extensions
-  apt:
+  ansible.builtin.apt:
     name: "{{ php8_extensions | map('prefix', 'php-') | list }}"
     state: present
   notify:
@@ -121,7 +127,7 @@
     - Restart PHP FPM
 
 - name: Install versioned PHP extensions
-  apt:
+  ansible.builtin.apt:
     name: "{{ php8_versioned_extensions | map('prefix', 'php' ~ php8_version ~ '-') | list }}"
   notify:
     - Restart Apache
